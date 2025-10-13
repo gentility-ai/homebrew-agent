@@ -1,41 +1,85 @@
 class GentilityAgent < Formula
-  desc "Secure WebSocket-based agent daemon for Gentility AI remote system administration"
+  desc "Gentility AI remote access daemon"
   homepage "https://gentility.ai"
-  url "https://github.com/gentility-ai/agent.git",
-      tag: "v1.1.1"
+  version "1.1.1"
   license "MIT"
 
-  depends_on "crystal" => :build
+  on_macos do
+    on_arm do
+      url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-darwin-arm64"
+      sha256 "7fcdba2a3656fcaf626a399c535b2aababc5c19b042ed353d32bf20063287e51"
+    end
+
+    on_intel do
+      url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-darwin-amd64"
+      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-linux-arm64"
+      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
+    end
+
+    on_intel do
+      url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-linux-amd64"
+      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
+    end
+  end
+
+  # Fallback to source for platforms without prebuilt binaries
+  resource "source" do
+    url "https://github.com/gentility-ai/agent.git",
+        tag: "v#{version}"
+  end
+
+  depends_on "bdw-gc" => :optional
+  depends_on "crystal" => [:build, :optional]
+  depends_on "libevent" => :optional
   depends_on "openssl@3"
-  depends_on "bdw-gc"
-  depends_on "libevent"
-  depends_on "pcre2"
+  depends_on "pcre2" => :optional
 
   def install
-    # Install Crystal dependencies
-    system "shards", "install", "--production"
+    # Check if we downloaded a prebuilt binary or need to build from source
+    if buildpath.glob("gentility-agent-*").any?
+      # Prebuilt binary was downloaded
+      binary = buildpath.glob("gentility-agent-*").first
+      bin.install binary => "gentility"
 
-    # Set up OpenSSL paths for macOS
-    ENV["PKG_CONFIG_PATH"] = "#{Formula["openssl@3"].opt_lib}/pkgconfig"
+      # Download source to get config example
+      resource("source").stage do
+        etc.install "gentility.yaml.example" if File.exist?("gentility.yaml.example")
+      end
+    else
+      # Build from source (fallback)
+      resource("source").stage(buildpath)
 
-    # Build the binary with proper linking
-    system "crystal", "build", "src/agent.cr",
-           "--release", "--no-debug", "-o", "gentility",
-           "--link-flags", "-L#{Formula["openssl@3"].opt_lib}"
+      # Install Crystal dependencies
+      system "shards", "install", "--production"
 
-    # Install the binary
-    bin.install "gentility"
+      # Set up OpenSSL paths for macOS
+      ENV["PKG_CONFIG_PATH"] = "#{Formula["openssl@3"].opt_lib}/pkgconfig"
 
-    # Install configuration example
-    etc.install "gentility.conf.example"
+      # Build the binary with proper linking
+      system "crystal", "build", "src/agent.cr",
+             "--release", "--no-debug", "-o", "gentility",
+             "--link-flags", "-L#{Formula["openssl@3"].opt_lib}"
+
+      # Install the binary
+      bin.install "gentility"
+
+      # Install configuration example
+      etc.install "gentility.yaml.example" if File.exist?("gentility.yaml.example")
+    end
   end
 
   def caveats
     <<~EOS
       Quick Setup:
-        gentility setup YOUR_TOKEN_HERE
+        gentility auth
 
-      This will create #{etc}/gentility.conf with your token.
+      This will log you in and associate this machine with your account.
 
       Then start as a service:
         brew services start gentility-agent
@@ -49,7 +93,7 @@ class GentilityAgent < Formula
 
   service do
     run [opt_bin/"gentility", "run"]
-    environment_variables GENTILITY_CONFIG: etc/"gentility.conf"
+    environment_variables GENTILITY_CONFIG: etc/"gentility.yaml"
     run_type :immediate
     keep_alive true
     log_path var/"log/gentility-agent/stdout.log"

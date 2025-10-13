@@ -28,10 +28,7 @@ class GentilityAgent < Formula
     end
   end
 
-  # Fallback to source for platforms without prebuilt binaries
-  resource "source" do
-    url "https://github.com/gentility-ai/agent/archive/refs/tags/v#{version}.tar.gz"
-  end
+  # No standalone resource - will be defined dynamically in install method if needed
 
   depends_on "bdw-gc" => :optional
   depends_on "crystal" => [:build, :optional]
@@ -42,19 +39,22 @@ class GentilityAgent < Formula
   def install
     # Check if we downloaded a prebuilt binary or need to build from source
     if buildpath.glob("gentility-agent-*").any?
-      # Prebuilt binary was downloaded
+      # Prebuilt binary was downloaded (from tar.gz)
       binary = buildpath.glob("gentility-agent-*").first
       bin.install binary => "gentility"
 
-      # Download source to get config example
-      resource("source").stage do
-        # GitHub tarball extracts to agent-VERSION directory
-        Dir.chdir("agent-#{version}") do
-          etc.install "gentility.yaml.example" if File.exist?("gentility.yaml.example")
-        end
-      end
+      # Install config example if it was included in the archive
+      etc.install "gentility.yaml.example" if File.exist?("gentility.yaml.example")
     else
       # Build from source (fallback)
+      # Download source tarball dynamically (version method works here in instance context)
+      source_url = "https://github.com/gentility-ai/agent/archive/refs/tags/v#{version}.tar.gz"
+
+      # Create a resource on the fly
+      resource("source") do
+        url source_url
+      end
+
       resource("source").stage do
         # GitHub tarball extracts to agent-VERSION directory
         Dir.chdir("agent-#{version}") do

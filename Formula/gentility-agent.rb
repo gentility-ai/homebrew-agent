@@ -1,13 +1,13 @@
 class GentilityAgent < Formula
   desc "Gentility AI remote access daemon"
   homepage "https://gentility.ai"
-  version "1.2.7"
+  version "1.2.8"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-darwin-arm64.tar.gz"
-      sha256 "3e9bba4a5b8ac46b27de80a28fe351abccd44692d26077d89372f8a691960c9c"
+      sha256 "293ceb70fdaba86b144daf8d8550ea19aa1bfc87a5e3c9b731fa119c328c65e3"
     end
 
     on_intel do
@@ -24,7 +24,7 @@ class GentilityAgent < Formula
 
     on_intel do
       url "https://github.com/gentility-ai/agent/releases/download/v#{version}/gentility-agent-#{version}-linux-amd64"
-      sha256 "5f824d52b00892a5cf32bea55669d42f18e0452fbf534d56030d71324539d020"
+      sha256 "af5036dc2b8be191b4f3c21a3d34e6ea63a787c54daaac3e6c01a04e44a16bea"
     end
   end
 
